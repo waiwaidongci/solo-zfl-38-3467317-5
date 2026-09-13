@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>古船模型帆索张力方案评审台</title>
+<style>
+  :root { --bg:#eef1ea; --panel:#fff; --ink:#20241f; --muted:#687066; --line:#d4ddd0; --accent:#526f43; --accent2:#3d5a80; --warn:#9b4937; --hold:#8a6d1d; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif; }
+  header { padding:16px 26px; background:#fff; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap; }
+  h1 { margin:0; font-size:22px; }
+  h2 { margin:0 0 10px; font-size:17px; }
+  h3 { margin:0; font-size:16px; }
+  main { padding:20px 26px; display:grid; grid-template-columns:340px 1fr; gap:18px; align-items:start; }
+  .panel,.card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:15px; }
+  .meta { color:var(--muted); font-size:13px; }
+  button { border:0; border-radius:6px; background:var(--accent); color:#fff; padding:8px 12px; font-weight:700; cursor:pointer; font:inherit; }
+  button.secondary { background:#69736a; }
+  button.blue { background:var(--accent2); }
+  button.ghost { background:#eef1ea; color:var(--ink); border:1px solid var(--line); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input,select,textarea { width:100%; border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; background:#fff; }
+  textarea { min-height:54px; resize:vertical; }
+  label { display:block; margin:9px 0 4px; color:var(--muted); font-size:13px; }
+  .who { display:flex; gap:8px; align-items:center; }
+  .who select { width:auto; min-width:200px; }
+  .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:12px; }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:9px; background:#fafcf8; text-align:center; }
+  .stat strong { display:block; font-size:22px; }
+  .pill { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 9px; font-size:12px; white-space:nowrap; }
+  .pill.draft { color:var(--muted); }
+  .pill.in_review { color:var(--accent2); border-color:var(--accent2); }
+  .pill.returned { color:var(--warn); border-color:var(--warn); }
+  .pill.superseded { color:#fff; background:#8b938a; border-color:#8b938a; }
+  .pill.locked { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .list { display:grid; gap:10px; }
+  .card.scheme { cursor:pointer; display:grid; gap:7px; }
+  .card.scheme:hover { border-color:var(--accent); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .progress { height:8px; border-radius:99px; background:#e4e8e0; overflow:hidden; display:flex; }
+  .progress .ok { background:var(--accent); } .progress .no { background:var(--warn); }
+  .blockers { border-left:4px solid var(--warn); background:#fbf1ef; border-radius:4px; padding:9px 11px; margin-top:8px; display:grid; gap:5px; }
+  .pendingbox { border-left:4px solid var(--accent2); background:#eef3f8; border-radius:4px; padding:9px 11px; margin-top:8px; display:grid; gap:5px; }
+  table.ropes { width:100%; border-collapse:collapse; margin-top:8px; }
+  table.ropes th, table.ropes td { border:1px solid var(--line); padding:8px; font-size:13px; vertical-align:top; text-align:left; }
+  table.ropes th { background:#f4f7f1; }
+  .verdict { font-size:12px; border-radius:6px; padding:5px 8px; display:inline-block; }
+  .verdict.approved { background:#eef5e8; color:var(--accent); }
+  .verdict.returned { background:#fbf1ef; color:var(--warn); }
+  .verdict.pending { background:#eef0ec; color:var(--muted); }
+  .versions { display:flex; gap:6px; flex-wrap:wrap; }
+  .versions .pill { cursor:pointer; }
+  .banner { padding:9px 12px; border-radius:6px; margin:8px 0; font-size:13px; }
+  .banner.warn { background:#fbf1ef; color:var(--warn); border:1px solid #e3c4bc; }
+  .banner.info { background:#eef3f8; color:var(--accent2); border:1px solid #c6d5e4; }
+  .ropeForm { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fafcf8; }
+  .ropeForm .grid2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  #toast { position:fixed; right:18px; bottom:18px; display:grid; gap:8px; z-index:50; }
+  .toast { background:#3a3f38; color:#fff; padding:10px 14px; border-radius:8px; max-width:380px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.2); }
+  .toast.err { background:var(--warn); }
+  .timeline { max-height:220px; overflow:auto; border-top:1px solid var(--line); margin-top:10px; padding-top:8px; display:grid; gap:4px; }
+  .muted { color:var(--muted); }
+  .danger { color:var(--warn); font-weight:700; }
+  .right { margin-left:auto; }
+  a { color:var(--accent2); }
+  @media (max-width:980px){ main{grid-template-columns:1fr;} .stats{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>古船模型 · 帆索张力方案评审台</h1>
+    <div class="meta">逐根帆索填写张力与安全区间，组内逐项评审；通过后锁定，改动一律生成新版本。 <a href="/calibration">帆索校准原型 →</a></div>
+  </div>
+  <div class="who">
+    <span class="meta">当前身份</span>
+    <select id="userSelect" data-testid="user-select"></select>
+    <button class="ghost" id="refreshBtn">刷新</button>
+  </div>
+</header>
+<main>
+  <section id="side"></section>
+  <section id="content"></section>
+</main>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const ROPE_FIELDS = [
+  ["position", "索具位置", "input"],
+  ["initialTension", "初始张力", "input"],
+  ["safeRange", "安全区间", "input"],
+  ["material", "材料", "input"],
+  ["steps", "调试步骤", "textarea"],
+  ["risk", "风险", "textarea"]
+];
+const STATUS_LABELS = { draft:"草稿", in_review:"评审中", returned:"已退回", superseded:"已过期", locked:"已锁定" };
+const ERROR_LABELS = {
+  unknown_user:"请先在右上角选择身份",
+  modeler_only:"只有建模师可以提交/修订方案",
+  reviewer_only:"只有评审人可以评审或锁定",
+  self_review_forbidden:"不能评审自己提交的方案，请换评审人账号",
+  not_submitter:"只有方案提交人本人可以执行此操作",
+  duplicate_name:"方案名称重复，请换一个名称",
+  stale_rev:"方案已被他人改动（版本过期），已为你刷新，请重试",
+  version_superseded:"该版本已过期，请在最新版本上操作",
+  scheme_locked:"方案已通过并锁定，不能修改；可复制为新方案",
+  not_in_review:"方案尚未进入评审",
+  not_submittable:"当前状态不能提交评审",
+  not_editable:"该版本不可直接编辑，改动会生成新版本",
+  cannot_lock:"还有帆索未全部通过，不能锁定",
+  return_reason_required:"退回必须写明理由",
+  rope_field_required:"有帆索条目未填写完整",
+  ropes_required:"至少要填写一根帆索",
+  name_required:"请填写方案名称",
+  draft_revision_exists:"该方案已有修订草稿，请先在草稿上继续",
+  draft_edit_in_place:"草稿请直接编辑，无需生成新版本",
+  locked_use_copy:"已锁定方案不能修订，请使用“复制为新方案”",
+  copy_requires_locked:"只有已通过并锁定的方案才能复制为新方案",
+  execution_requires_locked:"只有已锁定方案可以登记执行记录",
+  execution_note_required:"请填写执行记录内容",
+  rope_id_required:"缺少帆索条目",
+  bad_verdict:"评审结论无效",
+  base_rev_required:"缺少版本号",
+  bad_json:"请求格式错误",
+  scheme_not_found:"方案不存在",
+  rope_not_found:"帆索条目不存在"
+};
+
+const state = {
+  team: [],
+  user: localStorage.getItem("review-user") || "",
+  schemes: [],
+  overview: null,
+  view: "list",          // list | detail | form
+  detailId: null,
+  form: null,            // {mode:'create'|'edit', baseId, data}
+  returningRope: null
+};
+
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (state.user) headers["X-User-Id"] = state.user;
+  if (options.body) headers["Content-Type"] = "application/json";
+  const res = await fetch(path, { ...options, headers });
+  let data = null;
+  try { data = await res.json(); } catch { data = {}; }
+  if (!res.ok) {
+    const err = new Error(ERROR_LABELS[data.error] || ("操作被拒绝：" + data.error));
+    err.code = data.error;
+    err.data = data;
+    err.status = res.status;
+    toast(err.message, true);
+    throw err;
+  }
+  return data;
+}
+
+let toastSeq = 0;
+function toast(message, isErr) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.textContent = message;
+  el.setAttribute("data-testid", "toast");
+  el.dataset.seq = String(++toastSeq);
+  $("#toast").appendChild(el);
+  setTimeout(() => { el.remove(); }, 4200);
+}
+
+function me() { return state.team.find(m => m.id === state.user) || null; }
+function isModeler() { return me()?.role === "modeler"; }
+function isReviewer() { return me()?.role === "reviewer"; }
+function memberName(id) { return (state.team.find(m => m.id === id) || {}).name || id; }
+function fmtTime(at) { return at ? new Date(at).toLocaleString("zh-CN", { hour12:false }) : ""; }
+
+async function refreshAll() {
+  const [team, schemes, overview] = await Promise.all([
+    fetch("/api/review/team").then(r => r.json()),
+    api("/api/review/schemes"),
+    api("/api/review/overview")
+  ]);
+  state.team = team.team;
+  state.schemes = schemes.schemes;
+  state.overview = overview;
+  render();
+}
+
+function renderUser() {
+  const sel = $("#userSelect");
+  sel.innerHTML = '<option value="">— 请选择身份 —</option>' + state.team
+    .map(m => `<option value="${m.id}" ${m.id === state.user ? "selected" : ""}>${esc(m.name)}（${m.title}）</option>`).join("");
+}
+
+function statusPill(status) {
+  return `<span class="pill ${status}">${STATUS_LABELS[status] || status}</span>`;
+}
+
+// ---------- 侧栏：进度、待处理项、阻塞原因 ----------
+function renderSide() {
+  const o = state.overview;
+  const counts = SCHEME_STATUSES_ROW.map(([key]) => [key, o.byStatus[key] || 0]);
+  const blockers = o.blockers || [];
+  const pending = o.pendingItems || [];
+  $("#side").innerHTML = `
+    <div class="panel">
+      <h2>评审进度</h2>
+      <div class="stats">
+        ${counts.map(([k, v]) => `<div class="stat"><span class="meta">${STATUS_LABELS[k]}</span><strong>${v}</strong></div>`).join("")}
+      </div>
+      <div class="meta">待处理评审项：<b data-testid="pending-count">${o.pendingCount}</b> ｜ 阻塞项：<b class="danger">${blockers.length}</b> ｜ 执行记录：<b>${o.executionCount}</b></div>
+      ${isModeler() ? `<div style="margin-top:12px"><button data-testid="new-scheme" style="width:100%">＋ 提交新张力方案</button></div>` : ""}
+      <div class="pendingbox" data-testid="pending-box" ${pending.length ? "" : "hidden"}>
+        <b>待处理项（${pending.length}）</b>
+        ${pending.slice(0, 12).map(p => `<div class="meta">· <a href="#" data-goto="${p.schemeId}">${esc(p.name)} v${p.version}</a>：${esc(p.position)}</div>`).join("")}
+        ${pending.length > 12 ? `<div class="meta">…其余 ${pending.length - 12} 项</div>` : ""}
+      </div>
+      <div class="blockers" data-testid="blocker-box" ${blockers.length ? "" : "hidden"}>
+        <b class="danger">阻塞原因（${blockers.length}）</b>
+        ${blockers.slice(0, 12).map(b => `<div>· <a href="#" data-goto="${b.schemeId}">${esc(b.name)} v${b.version}</a> 的「${esc(b.position)}」<br><span class="meta">${esc(b.reason)} — ${esc(b.reviewerName)}，${fmtTime(b.at)}</span></div>`).join("")}
+        ${blockers.length > 12 ? `<div class="meta">…其余 ${blockers.length - 12} 条</div>` : ""}
+      </div>
+      ${!blockers.length && !pending.length ? `<div class="meta" style="margin-top:10px">暂无待处理与阻塞项。</div>` : ""}
+    </div>`;
+}
+
+const SCHEME_STATUSES_ROW = [["draft"],["in_review"],["returned"],["superseded"],["locked"]];
+
+// ---------- 列表 ----------
+function renderList() {
+  const families = new Map();
+  for (const s of state.schemes) {
+    if (!families.has(s.key)) families.set(s.key, []);
+    families.get(s.key).push(s);
+  }
+  const familyCards = [];
+  for (const versions of families.values()) {
+    versions.sort((a, b) => b.version - a.version);
+    const latest = versions[0];
+    familyCards.push(schemeCard(latest, versions.length));
+  }
+  $("#content").innerHTML = `
+    <div class="panel">
+      <h2>方案列表（${families.size} 个方案）</h2>
+      <div class="list">${familyCards.join("") || `<div class="meta">还没有方案。${isModeler() ? "点击左侧“提交新张力方案”开始。" : "请等待建模师提交。"}</div>`}</div>
+    </div>`;
+}
+
+function schemeCard(s, versionCount) {
+  const p = s.progress;
+  const pct = n => p.total ? Math.round(n / p.total * 100) : 0;
+  return `<article class="card scheme" data-testid="scheme-card" data-goto="${s.id}">
+    <div class="row"><h3>${esc(s.name)}</h3>${statusPill(s.status)}<span class="pill">v${s.version}${versionCount > 1 ? `（共 ${versionCount} 版）` : ""}</span></div>
+    <div class="meta">${esc(s.modelCode || "未填模型编号")} · ${esc(s.shipType || "")} · 提交人 ${esc(memberName(s.submitterId))}</div>
+    <div class="progress" title="通过 ${p.approved}/${p.total}，退回 ${p.returned}，待处理 ${p.pending}">
+      <div class="ok" style="width:${pct(p.approved)}%"></div><div class="no" style="width:${pct(p.returned)}%"></div>
+    </div>
+    <div class="meta">逐项通过 ${p.approved}/${p.total} · 退回 ${p.returned} · 待处理 ${p.pending}${s.blockers.length ? ` · <span class="danger">阻塞 ${s.blockers.length}</span>` : ""}</div>
+    ${s.status === "locked" ? `<div class="meta">锁定于 ${fmtTime(s.lockedAt)}，执行记录 ${s.executions.length} 条</div>` : ""}
+  </article>`;
+}
+
+// ---------- 方案详情 ----------
+function currentDetail() { return state.schemes.find(s => s.id === state.detailId); }
+function familyOf(s) { return state.schemes.filter(x => x.key === s.key).sort((a, b) => a.version - b.version); }
+
+function lastDecision(s, ropeId) {
+  let d = null;
+  for (const x of s.decisions) {
+    if (x.ropeId === ropeId && (!d || x.at >= d.at)) d = x;
+  }
+  return d;
+}
+
+function renderDetail() {
+  const s = currentDetail();
+  if (!s) { state.view = "list"; render(); return; }
+  const family = familyOf(s);
+  const mine = s.submitterId === state.user;
+  const canReview = isReviewer() && !mine && (s.status === "in_review" || s.status === "returned") && s.isLatest;
+  const canSubmit = isModeler() && mine && s.status === "draft";
+  const canEditDraft = canSubmit;
+  const canRevise = isModeler() && mine && (s.status === "in_review" || s.status === "returned") && s.isLatest;
+  const canLock = isReviewer() && !mine && s.canLock;
+  const canCopy = isModeler() && s.status === "locked";
+
+  $("#content").innerHTML = `
+    <div class="panel" data-testid="detail">
+      <div class="row">
+        <button class="ghost" data-testid="back-list">← 返回列表</button>
+        <h2>${esc(s.name)}</h2>
+        ${statusPill(s.status)}
+        <span class="pill">版本 v${s.version}</span>
+        ${s.isLatest ? '<span class="pill in_review">最新版</span>' : '<span class="pill superseded">非最新版</span>'}
+        <span class="right row">
+          ${canEditDraft ? `<button class="secondary" data-testid="edit-draft">编辑草稿</button>` : ""}
+          ${canSubmit ? `<button data-testid="submit-review">提交评审</button>` : ""}
+          ${canRevise ? `<button class="blue" data-testid="revise">退回项修订（生成新版本）</button>` : ""}
+          ${canLock ? `<button data-testid="lock">全部通过，锁定方案</button>` : ""}
+          ${canCopy ? `<button class="secondary" data-testid="copy">复制为新方案</button>` : ""}
+        </span>
+      </div>
+      <div class="meta" style="margin-top:6px">
+        ${esc(s.modelCode || "未填模型编号")} · ${esc(s.shipType || "船型未填")} · 提交人 ${esc(memberName(s.submitterId))} · 提交于 ${fmtTime(s.submittedAt) || "尚未提交"}
+        ${s.lockedAt ? ` · 锁定于 ${fmtTime(s.lockedAt)}` : ""}
+      </div>
+      ${s.summary ? `<div class="meta" style="margin-top:6px">${esc(s.summary)}</div>` : ""}
+      ${s.copiedFrom ? `<div class="banner info">本方案复制自 ${esc(s.copiedFrom.name)} v${s.copiedFrom.version}（评审结论与执行记录未继承）。</div>` : ""}
+
+      <div class="versions" style="margin-top:10px">
+        ${family.map(v => `<a href="#" data-goto="${v.id}"><span class="pill ${v.status}">v${v.version} ${STATUS_LABELS[v.status]}${v.id === s.id ? " ◄" : ""}</span></a>`).join("")}
+      </div>
+
+      ${!s.isLatest ? `<div class="banner warn" data-testid="stale-banner">本版本已过期或不是最新版，仅供查阅；评审与修订请在最新版本上进行。</div>` : ""}
+      ${s.status === "locked" ? `<div class="banner info">方案已锁定，作为执行基准；任何改动必须复制为新方案重新评审，既有执行记录不受影响。</div>` : ""}
+
+      <h2 style="margin-top:14px">帆索逐项方案与评审（${s.progress.approved}/${s.progress.total} 通过）</h2>
+      <div class="progress"><div class="ok" style="width:${s.progress.total ? s.progress.approved / s.progress.total * 100 : 0}%"></div><div class="no" style="width:${s.progress.total ? s.progress.returned / s.progress.total * 100 : 0}%"></div></div>
+      <div data-testid="rope-list">
+        ${s.ropes.map((r, i) => ropeBlock(s, r, i, canReview)).join("")}
+      </div>
+
+      ${s.blockers.length ? `<div class="blockers" data-testid="detail-blockers"><b class="danger">阻塞原因</b>${s.blockers.map(b => `<div>· 「${esc(b.position)}」：${esc(b.reason)} <span class="meta">— ${esc(b.reviewerName)}，${fmtTime(b.at)}</span></div>`).join("")}</div>` : ""}
+
+      <h2 style="margin-top:16px">执行记录（锁定基准）</h2>
+      ${s.status === "locked" ? `
+        <div class="row">
+          <input data-testid="exec-note" placeholder="按锁定方案执行的记录，例如：前桅侧支索按 12N 复紧，张力计复核合格">
+          <button data-testid="exec-add">登记执行记录</button>
+        </div>` : `<div class="meta">方案锁定后可登记执行记录。</div>`}
+      <div data-testid="exec-list" style="margin-top:8px; display:grid; gap:6px">
+        ${s.executions.map(e => `<div class="meta">· ${fmtTime(e.at)} ${esc(memberName(e.authorId))}：${esc(e.note)}（基准 v${e.snapshot.version}）</div>`).join("") || `<div class="meta">暂无执行记录</div>`}
+      </div>
+
+      <h2 style="margin-top:16px">版本历程</h2>
+      <div class="timeline" data-testid="history">
+        ${[...s.history].reverse().map(h => `<div class="meta">· ${fmtTime(h.at)} ${esc(memberName(h.by))}：${esc(h.note)}</div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function ropeBlock(s, r, i, canReview) {
+  const d = lastDecision(s, r.id);
+  const verdictCls = d ? d.verdict : "pending";
+  const verdictText = d ? (d.verdict === "approved" ? "已通过" : "已退回") : "待评审";
+  const returning = state.returningRope === r.id;
+  return `<div class="ropeForm" data-testid="rope" data-rope="${r.id}">
+    <div class="row"><b>#${i + 1} ${esc(r.position)}</b>
+      <span class="verdict ${verdictCls}" data-testid="rope-verdict">${verdictText}${d ? " · " + esc(memberName(d.reviewerId)) : ""}</span></div>
+    <table class="ropes">
+      <tr><th style="width:110px">初始张力</th><td>${esc(r.initialTension)}</td><th style="width:110px">安全区间</th><td>${esc(r.safeRange)}</td></tr>
+      <tr><th>材料</th><td colspan="3">${esc(r.material)}</td></tr>
+      <tr><th>调试步骤</th><td colspan="3">${esc(r.steps)}</td></tr>
+      <tr><th>风险</th><td colspan="3">${esc(r.risk)}</td></tr>
+    </table>
+    ${d && d.verdict === "returned" ? `<div class="blockers" style="margin-top:8px"><b class="danger">退回理由：</b>${esc(d.reason)} <span class="meta">— ${esc(memberName(d.reviewerId))}，${fmtTime(d.at)}</span></div>` : ""}
+    ${canReview ? `
+      <div class="row" style="margin-top:8px">
+        <button data-testid="approve" data-rope="${r.id}" ${d && d.verdict === "approved" ? "" : ""}>通过</button>
+        <button class="secondary" data-testid="return" data-rope="${r.id}">退回</button>
+      </div>
+      ${returning ? `
+        <label>退回理由（必填）</label>
+        <textarea data-testid="return-reason" placeholder="例如：初始张力缺少张力计读数依据，安全区间下限高于材料推荐值"></textarea>
+        <div class="row" style="margin-top:6px"><button class="secondary" data-testid="return-confirm" data-rope="${r.id}">确认退回</button><button class="ghost" data-testid="return-cancel">取消</button></div>` : ""}
+    ` : ""}
+  </div>`;
+}
+
+// ---------- 新建 / 编辑表单 ----------
+function blankRope() {
+  return { id: "", position: "", initialTension: "", safeRange: "", material: "", steps: "", risk: "" };
+}
+
+function renderForm() {
+  const f = state.form;
+  const d = f.data;
+  const editing = f.mode === "edit";
+  $("#content").innerHTML = `
+    <div class="panel" data-testid="scheme-form">
+      <div class="row"><button class="ghost" data-testid="form-cancel">← 返回</button><h2>${editing ? "编辑草稿" : "提交帆索张力方案"}</h2></div>
+      ${editing ? `<div class="banner info">正在编辑 ${esc(d.name)} v${d.version} 草稿，保存不会生成新版本；提交评审后的改动才会生成新版本。</div>` : ""}
+      <div class="row" style="align-items:flex-start">
+        <div style="flex:2"><label>方案名称（不可重名）*</label><input data-testid="f-name" value="${esc(d.name)}" placeholder="例如：福船 MR-001 帆索张力初调方案"></div>
+        <div style="flex:1"><label>模型编号</label><input data-testid="f-code" value="${esc(d.modelCode)}" placeholder="MR-001"></div>
+        <div style="flex:1"><label>船型</label><input data-testid="f-ship" value="${esc(d.shipType)}" placeholder="福船"></div>
+      </div>
+      <label>方案概述</label><textarea data-testid="f-summary">${esc(d.summary)}</textarea>
+      <div class="row" style="margin-top:12px"><h2>逐根帆索（${d.ropes.length}）</h2><button class="ghost" data-testid="rope-add" type="button">＋ 增加一根帆索</button></div>
+      <div id="ropeForms">${d.ropes.map((r, i) => ropeForm(r, i, d.ropes.length)).join("")}</div>
+      <div class="row" style="margin-top:12px">
+        <button data-testid="form-save">${editing ? "保存草稿" : "保存为草稿"}</button>
+        ${editing ? `<button class="ghost" data-testid="form-cancel2">取消</button>` : ""}
+      </div>
+      <div class="meta" style="margin-top:8px">保存后在详情页“提交评审”进入组内逐项评审。</div>
+    </div>`;
+}
+
+function ropeForm(r, i, total) {
+  return `<div class="ropeForm" data-form-rope="${i}">
+    <div class="row"><b>帆索 #${i + 1}</b>${total > 1 ? `<button class="ghost right" type="button" data-remove-rope="${i}">删除</button>` : ""}</div>
+    <div class="grid2">
+      <div><label>索具位置 *</label><input data-rk="position" value="${esc(r.position)}" placeholder="前桅侧支索"></div>
+      <div><label>初始张力 *</label><input data-rk="initialTension" value="${esc(r.initialTension)}" placeholder="12 N（张力计读数）"></div>
+      <div><label>安全区间 *</label><input data-rk="safeRange" value="${esc(r.safeRange)}" placeholder="10–14 N"></div>
+    </div>
+    <label>材料 *</label><input data-rk="material" value="${esc(r.material)}" placeholder="0.8mm 浸蜡麻线">
+    <label>调试步骤 *</label><textarea data-rk="steps" placeholder="1. 松半圈 … 2. 张力计复核 …">${esc(r.steps)}</textarea>
+    <label>风险 *</label><textarea data-rk="risk" placeholder="受潮伸长 / 过紧导致桅杆变形 …">${esc(r.risk)}</textarea>
+  </div>`;
+}
+
+function collectForm() {
+  const d = state.form.data;
+  d.name = $('[data-testid="f-name"]').value;
+  d.modelCode = $('[data-testid="f-code"]').value;
+  d.shipType = $('[data-testid="f-ship"]').value;
+  d.summary = $('[data-testid="f-summary"]').value;
+  document.querySelectorAll("#ropeForms [data-form-rope]").forEach((box, i) => {
+    for (const [key] of ROPE_FIELDS) {
+      const input = box.querySelector(`[data-rk="${key}"]`);
+      if (input) d.ropes[i][key] = input.value;
+    }
+  });
+  return d;
+}
+
+// ---------- 渲染入口 ----------
+function render() {
+  renderUser();
+  renderSide();
+  if (state.view === "list") renderList();
+  else if (state.view === "detail") renderDetail();
+  else if (state.view === "form") renderForm();
+}
+
+async function withReloadOnConflict(fn) {
+  try { return await fn(); }
+  catch (err) {
+    if (err.code === "stale_rev" || err.code === "version_superseded") {
+      await refreshAll(); // api() 已提示错误，这里只做整体刷新
+    }
+    throw err;
+  }
+}
+
+// ---------- 全局事件 ----------
+$("#userSelect").addEventListener("change", async e => {
+  state.user = e.target.value;
+  if (state.user) localStorage.setItem("review-user", state.user);
+  else localStorage.removeItem("review-user");
+  state.returningRope = null;
+  render();
+});
+$("#refreshBtn").addEventListener("click", refreshAll);
+
+document.addEventListener("click", async e => {
+  const goto = e.target.closest("[data-goto]");
+  if (goto) { e.preventDefault(); state.view = "detail"; state.detailId = goto.dataset.goto; state.returningRope = null; render(); return; }
+
+  if (e.target.id === "refreshBtn") return;
+  const t = v => e.target.closest(v);
+
+  if (t('[data-testid="new-scheme"]')) {
+    state.form = { mode:"create", baseId:null, data:{ name:"", modelCode:"", shipType:"", summary:"", ropes:[blankRope()] } };
+    state.view = "form"; render(); return;
+  }
+  if (t('[data-testid="back-list"]')) { state.view = "list"; render(); return; }
+
+  if (t('[data-testid="edit-draft"]')) {
+    const s = currentDetail();
+    state.form = { mode:"edit", baseId:s.id, data:JSON.parse(JSON.stringify({
+      name:s.name, modelCode:s.modelCode, shipType:s.shipType, summary:s.summary, version:s.version, ropes:s.ropes
+    })) };
+    state.view = "form"; render(); return;
+  }
+  if (t('[data-testid="form-cancel"]') || t('[data-testid="form-cancel2"]')) {
+    state.view = state.form.mode === "edit" ? "detail" : "list"; render(); return;
+  }
+  if (t('[data-testid="rope-add"]')) {
+    collectForm(); state.form.data.ropes.push(blankRope()); renderForm(); return;
+  }
+  const removeBtn = t("[data-remove-rope]");
+  if (removeBtn) {
+    collectForm(); state.form.data.ropes.splice(Number(removeBtn.dataset.removeRope), 1);
+    if (!state.form.data.ropes.length) state.form.data.ropes.push(blankRope());
+    renderForm(); return;
+  }
+  if (t('[data-testid="form-save"]')) {
+    const d = collectForm();
+    try {
+      let saved;
+      if (state.form.mode === "create") {
+        saved = await api("/api/review/schemes", { method:"POST", body: JSON.stringify(d) });
+        toast("草稿已创建");
+      } else {
+        const baseId = state.form.baseId;
+        saved = await withReloadOnConflict(() => {
+          const base = state.schemes.find(x => x.id === baseId);
+          return api("/api/review/schemes/" + baseId, {
+            method:"PUT", body: JSON.stringify({ ...d, baseRev: base.rev })
+          });
+        });
+        if (!saved) return; // 冲突后已整体刷新
+        toast("草稿已保存");
+      }
+      state.view = "detail"; state.detailId = saved.id; state.form = null;
+      await refreshAll();
+    } catch (err) { /* 已提示 */ }
+    return;
+  }
+
+  if (t('[data-testid="submit-review"]')) {
+    const s = currentDetail();
+    try {
+      const updated = await withReloadOnConflict(() =>
+        api(`/api/review/schemes/${s.id}/submit`, { method:"POST", body: JSON.stringify({ baseRev:s.rev }) }));
+      toast(`v${updated.version} 已进入组内评审`);
+      await refreshAll();
+    } catch {} return;
+  }
+  if (t('[data-testid="lock"]')) {
+    const s = currentDetail();
+    try {
+      await withReloadOnConflict(() =>
+        api(`/api/review/schemes/${s.id}/lock`, { method:"POST", body: JSON.stringify({ baseRev:s.rev }) }));
+      toast("方案已锁定，成为执行基准");
+      await refreshAll();
+    } catch {} return;
+  }
+  if (t('[data-testid="revise"]')) {
+    const s = currentDetail();
+    try {
+      const draft = await api(`/api/review/schemes/${s.id}/revise`, { method:"POST" });
+      toast(`已基于 v${s.version} 生成 v${draft.version} 修订草稿`);
+      state.view = "detail"; state.detailId = draft.id;
+      await refreshAll();
+    } catch (err) { /* 已提示 */ }
+    return;
+  }
+  if (t('[data-testid="copy"]')) {
+    const s = currentDetail();
+    const name = prompt("复制为新方案，请命名（不能与既有方案重名）", s.name + " 复制方案");
+    if (name === null) return;
+    try {
+      const draft = await api(`/api/review/schemes/${s.id}/copy`, { method:"POST", body: JSON.stringify({ name }) });
+      toast("已复制为独立新方案草稿，评审与执行记录均未继承");
+      state.view = "detail"; state.detailId = draft.id;
+      await refreshAll();
+    } catch {} return;
+  }
+
+  if (t('[data-testid="approve"]')) {
+    const s = currentDetail(); const ropeId = e.target.closest("[data-rope]").dataset.rope;
+    try {
+      await withReloadOnConflict(() =>
+        api(`/api/review/schemes/${s.id}/decisions`, { method:"POST",
+          body: JSON.stringify({ ropeId, verdict:"approved", reason:"", baseRev:s.rev }) }));
+      toast("已通过");
+      await refreshAll();
+    } catch {} return;
+  }
+  if (t('[data-testid="return"]')) {
+    state.returningRope = e.target.closest("[data-rope]").dataset.rope;
+    renderDetail();
+    const ta = document.querySelector('[data-testid="return-reason"]');
+    if (ta) ta.focus();
+    return;
+  }
+  if (t('[data-testid="return-cancel"]')) { state.returningRope = null; renderDetail(); return; }
+  if (t('[data-testid="return-confirm"]')) {
+    const s = currentDetail();
+    const ropeId = e.target.closest("[data-return-confirm], [data-rope]")?.dataset.rope || state.returningRope;
+    const reason = $('[data-testid="return-reason"]').value.trim();
+    try {
+      await withReloadOnConflict(() =>
+        api(`/api/review/schemes/${s.id}/decisions`, { method:"POST",
+          body: JSON.stringify({ ropeId, verdict:"returned", reason, baseRev:s.rev }) }));
+      state.returningRope = null;
+      toast("已退回，建模师需修订生成新版本");
+      await refreshAll();
+    } catch {} return;
+  }
+
+  if (t('[data-testid="exec-add"]')) {
+    const s = currentDetail();
+    const note = $('[data-testid="exec-note"]').value.trim();
+    try {
+      await api(`/api/review/schemes/${s.id}/executions`, { method:"POST", body: JSON.stringify({ note }) });
+      $('[data-testid="exec-note"]').value = "";
+      toast("执行记录已登记");
+      await refreshAll();
+    } catch {} return;
+  }
+});
+
+refreshAll().catch(err => toast("加载失败：" + err.message, true));
+</script>
+</body>
+</html>
