@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/api/",
-    "test:e2e": "node --test test/e2e/",
-    "test:all": "node --test test/api/ test/e2e/",
+    "test": "node --test test/api/*.test.js",
+    "test:e2e": "node --test test/e2e/*.test.js",
+    "test:all": "node --test test/api/*.test.js test/e2e/*.test.js",
     "browser:libs": "bash scripts/fetch-browser-libs.sh"
   },
   "devDependencies": {
